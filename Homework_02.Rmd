@@ -29,7 +29,7 @@ This data was collected from www.theramenrater.com. It provides information on d
 
 Read in the Ramen data and check it carefully. 
 
-```{r read_csv}
+```{r}
 ramen_df <- read_csv("data/ramen-ratings.csv")
 ```
 #### (b)
@@ -95,7 +95,7 @@ updated_ramen %>%
 The average stars for popular ramen is **4.86**.
 The average stars for not popular ramen is **3.3**.
 
-Only three values were dropped so these could be seen as meaningful. However, there are also some reasons they may not be: mean is not always the best indicator due to outliers, and there may be some bias in the types of people who provide ratings.
+There are a few reasons why they may not be meaningful: mean is not always the best indicator due to outliers, and there may be some bias in the types of people who provide ratings. More importantly, we had already split the dataset by popularity, so the average ratings won't be as meaningful. 
 
 ## Question 2 
 
@@ -163,7 +163,7 @@ updated_airbnb %>%
   summarise(Count = n())
 ```
 
-There are _many_ more listings in the boroughs of Brooklyn and Manhattan compared to those in the Bronx, Queens and Staten Island. Therefore I do not believe all boroughs are well-represented.
+All five boroughs are represented. However, there are _many_ more listings in the boroughs of Brooklyn and Manhattan compared to those in the Bronx, Queens and Staten Island, so it's not exactly equal representation. 
 
 #### (e)
 
@@ -195,7 +195,7 @@ What is the most commonly occurring host name? Re-write the code below using pip
 
 ```{r piping}
 
-arrange(summarise(group_by(nyc_airbnb, host_name), n = n()), -n)
+#arrange(summarise(group_by(nyc_airbnb, host_name), n = n()), -n)
 
 airbnb_df %>% 
   group_by(host_name) %>% 
@@ -295,26 +295,126 @@ You have been provided with a dataset from a student-run cafe `cafedata.xls`. Th
 
 ```{r}
 library(readxl)
-
 cafedata = read_excel("data/cafedata.xls", sheet = 2)
-
+#readin
 ```
 
-Students called a day a 'profitable day', when they had at least $160 in sales. There were XXX 'profitable' days and XXX 'unprofitable' days. 
+Students called a day a 'profitable day', when they had at least $160 in sales. There were **18** 'profitable' days and **29** 'unprofitable' days (with one day unaccounted for).
 
-On 'profitable' days, the mean number of wraps sold was XXX with a standard deviation of XXX. On 'unprofitable' days, the mean number of wraps sold was XXX with a standard deviation of XXX. 
+```{r}
+cafedata_profitable = cafedata %>% 
+    mutate(profitable = case_when(Sales >= 160 ~ 1,
+                             Sales < 160 ~ 0,
+                             TRUE ~ 99))
+#created profitable variable
 
-On 'profitable days', on average they sold XXX muffins and cookies combined, with a standard deviation of XXX. On 'unprofitable days', on average they sold XXX muffins and cookies combined, with a standard deviation of XXX. 
+cafedata_profitable %>% 
+  group_by(profitable) %>% 
+  summarize(n = n()) %>% 
+  arrange(desc(n))
+```
 
-The mean number of coffees sold on 'profitable' days was XXX with a standard deviation of XXX and the mean number of coffees sold on 'unprofitable' days was XXX with a standard deviation of XXX. 
+On 'profitable' days, the mean number of wraps sold was **16.1** with a standard deviation of **6.82**. On 'unprofitable' days, the mean number of wraps sold was **11.3** with a standard deviation of **4.38**. 
 
-When comparing profitable to nonprofitable days, there was a significant difference in coffee sold (p-value = XXX, t=XXX, df=XXX), and in wraps sold (p-value = XXX, t=XXX, df=XXX). However, the sales of muffins and cookies did not significantly differ between profitable and nonprofitable days (p-value = XXX, t=XXX, df=XXX), at a level of significance of 5%.
+```{r}
+as.character(cafedata_profitable$`Wraps Sold`)
+
+cafedata_profitable = cafedata_profitable %>% 
+  rename(wraps_sold = `Wraps Sold`)
+
+
+cafedata_profitable %>% 
+  group_by(profitable) %>% 
+  summarize(mean_wraps = mean(wraps_sold, na.rm = TRUE),
+            sd_wraps = sd(wraps_sold, na.rm = TRUE)
+            )
+```
+
+On 'profitable days', on average they sold **13.8** muffins and cookies combined, with a standard deviation of **7.35**. On 'unprofitable days', on average they sold **10.3** muffins and cookies combined, with a standard deviation of **7.35**. 
+
+```{r}
+cafedata_profitable = cafedata_profitable %>% 
+  mutate(
+    muffin_cookie = `Muffins Sold` + `Cookies Sold`
+  )
+
+cafedata_profitable %>% 
+  group_by(profitable) %>% 
+  summarize(mean_muffin_cookie = mean(muffin_cookie, na.rm = TRUE),
+            sd_muffin_cookie = sd(muffin_cookie, na.rm = TRUE)
+            )
+```
+
+The mean number of coffees sold on 'profitable' days was **25.6** with a standard deviation of **8.44** and the mean number of coffees sold on 'unprofitable' days was **19.00** with a standard deviation of **11.9**.
+
+```{r}
+cafedata_profitable = cafedata_profitable %>% 
+  rename(coffees_sold = Coffees)
+
+
+cafedata_profitable %>% 
+  group_by(profitable) %>% 
+  summarize(mean_coffees = mean(coffees_sold, na.rm = TRUE),
+            sd_coffees = sd(coffees_sold, na.rm = TRUE)
+            )
+```
+
+When comparing profitable to nonprofitable days, there was a significant difference in coffee sold (p-value = 0.03, t = -2.24, df = 44), and in wraps sold (p-value = 0.013, t = -2.66, df = 25.8). However, the sales of muffins and cookies did not significantly differ between profitable and nonprofitable days (p-value = 0.111, t = -1.64, df = 33), at a level of significance of 5%.
+
+```{r}
+#coffee
+
+coffee_t_res = t.test(coffees_sold ~ profitable, data = cafedata_profitable,
+                       var.equal = FALSE)
+
+coffee_t_res
+
+coffee_tstat = round(coffee_t_res$statistic, 2)
+coffee_df = round(coffee_t_res$parameter, 1)
+coffee_p = round(coffee_t_res$p.value, 3)
+
+#wraps
+
+cafedata_profitable %>% 
+  group_by(profitable) %>% 
+  summarize(coffees_sold = mean(wraps_sold, na.rm = TRUE),
+            sd_wraps = sd(wraps_sold, na.rm = TRUE)
+            )
+
+wraps_t_res = t.test(wraps_sold ~ profitable, data = cafedata_profitable,
+                       var.equal = FALSE)
+
+wraps_t_res
+
+wraps_tstat = round(wraps_t_res$statistic, 2)
+wraps_df = round(wraps_t_res$parameter, 1)
+wraps_p = round(wraps_t_res$p.value, 3)
+
+#muffins and cookies
+
+muffin_cookie_t_res = t.test(muffin_cookie ~ profitable, data = cafedata_profitable,
+                       var.equal = FALSE)
+
+muffin_cookie_t_res
+
+muffin_cookie_tstat = round(muffin_cookie_t_res
+$statistic, 2)
+muffin_cookie_df = round(muffin_cookie_t_res
+$parameter, 1)
+muffin_cookie_p = round(muffin_cookie_t_res
+$p.value, 3)
+
+```
 
 #### (b)
 
 Create a graph that displays the distribution of coffee sales by day. Make sure the graph has the days ordered properly, as we would expect to see them on a calendar. 
 
 ```{r}
+cafedata_profitable$`Day of Week` = factor(cafedata_profitable$`Day of Week` , levels = c("Mon", "Tue", "Wed", "Thu", "Fri"))
 
+ggplot(data = cafedata_profitable) +
+  geom_boxplot(aes(x = `Day of Week`, y = coffees_sold)) +
+  labs(x = "Day of the Week", y = "Coffee Sales", title = "Distribution of Coffee Sales by Day", subtitle = "Executive Express Cafe")
 ```
 
