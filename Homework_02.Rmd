@@ -193,14 +193,17 @@ Queens and Staten Island both have a median price of $75.
 
 What is the most commonly occurring host name? Re-write the code below using pipes and then report the answer in a sentence.
 
-```{r}
+```{r piping}
 
 arrange(summarise(group_by(nyc_airbnb, host_name), n = n()), -n)
 
-
-
+airbnb_df %>% 
+  group_by(host_name) %>% 
+  summarize(n = n()) %>% 
+  arrange(desc(n))
 ```
 
+The most commonly-occurring host name is **Michael**. 
 
 ## Question 3
 
@@ -208,45 +211,80 @@ arrange(summarise(group_by(nyc_airbnb, host_name), n = n()), -n)
 
 You have been given a dataset for a study of a potential depression drug: `STUDYDAT12014.csv`. It includes treatment and placebo status, dose, age, along with HAM-D and HAM-A scores at baseline (`baseline_hamd` and `baseline_hama`) and at the end of the study (`outcome_hamd` and `outcome_hama`). Read in this dataset (`STUDYDAT12014.csv`) and report how many variables and how many observations are in this dataset.
 
-```{r}
-
-
-
+```{r readin}
+study_df <- read_csv("data/STUDYDAT12014.csv")
+#read in
 ```
+
+There are **200** observations and **8** variables in the dataset.
 
 #### (b)
 
 The investigators are interested in analyzing subjects who are at least 30 years old but less than 40 years old, so create a dataset which contains only observations from people within this age range. Use this dataset for all subsequent analyses.
 
-```{r}
-
-
+```{r filter}
+select_study <- filter(study_df, age >= 30 & age < 40)
 ```
 
 #### (c)
 The treatment groups are currently labeled `pbo` and `trx`, but the researchers would like to have them labeled `Placebo` and `Drug 13XA`. Please make these changes to the dataset you created in (b)  
 
-```{r}
-
+```{r rename}
+select_study$trx[select_study$trx == "pbo"] <- "Placebo"
+select_study$trx[select_study$trx == "trx"] <- "Drug 13XA"
 ```
 
 #### (d)
 
 Create two new variables `hamd_diff` and `hama_diff` that are changes between baseline and outcome measurements for HAM-A and HAM-D. 
 
-```{r}
-
+```{r differences}
+updated_study = select_study %>% 
+  mutate(
+    hamd_diff = baseline_hamd - outcome_hamd,
+    hama_diff = baseline_hama - outcome_hama
+  )
 ```
 
 #### (e)
 
 The investigators are interested in assessing whether there is a difference in (1) mean HAM-A changes between treatment groups and (2) mean HAM-D changes between treatment groups. Use t-tests (unequal variance) to test the difference between treatment groups for both of these outcomes. Be sure to report the test statistic, p-value, and degrees of freedom for each test in your write-up. 
 
-```{r}
+```{r ttests}
+updated_study = updated_study %>% 
+  mutate(
+    mean_hamd_diff = mean(hamd_diff),
+    mean_hama_diff = mean(hamd_diff)
+  )
+#create variables for mean changes - actually not necessary
+
+hama_t_res = t.test(hama_diff ~ trx, data = updated_study,
+                       var.equal = FALSE)
+
+hama_t_res
+
+tstat = round(hama_t_res$statistic, 2)
+df = round(hama_t_res$parameter, 1)
+p = round(hama_t_res$p.value, 3)
 
 
+
+hamd_t_res = t.test(hamd_diff ~ trx, data = updated_study,
+                       var.equal = FALSE)
+
+hamd_t_res
+
+d_tstat = round(hamd_t_res$statistic, 2)
+d_df = round(hamd_t_res$parameter, 1)
+d_p = round(hamd_t_res$p.value, 3)
 
 ```
+
+**1. HAM-A**
+There is not enough evidence to reject the null hypothesis; the data do not support the alternative hypothesis that there is a significant difference in mean HAM-A changes between treatment groups (t = `r tstat`; df = `r df`; p = `r p`), at a level of significance of 5%.
+
+**2. HAM-D**
+There is not enough evidence to reject the null hypothesis; the data do not support the alternative hypothesis that there is a significant difference in mean HAM-D changes between treatment groups (t = `r d_tstat`; df = `r d_df`; p = `r d_p`), at a level of significance of 5%.
 
 
 ## Question 4
@@ -256,8 +294,9 @@ The investigators are interested in assessing whether there is a difference in (
 You have been provided with a dataset from a student-run cafe `cafedata.xls`. This dataset contains data from a cafe, called Executive Express, run by undergraduate business students at a Midwestern public university. It was collected over a ten-week period from January to April 2010.  Use what you have learned to read the data in, prepare it for analysis, and then calculate the necessary summary statistics to fill out the paragraph below, replacing the X's with appropriate results.
 
 ```{r}
+library(readxl)
 
-
+cafedata = read_excel("data/cafedata.xls", sheet = 2)
 
 ```
 
