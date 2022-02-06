@@ -1,0 +1,281 @@
+---
+title: "Homework 2"
+author: "Tara Ahi"
+date: "02/05/2022"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE) # no need to change these options
+library(tidyverse)
+library(readxl)
+library(janitor)
+```
+
+## Question 0
+
+Add your name and the date to the R Markdown Header. 
+
+Insert a floating table of contents to the HTML. 
+
+## Question 1 
+
+This data was collected from www.theramenrater.com. It provides information on different reviews of ramen products, and has variables: Review #, Brand, Variety, Style, Country, Stars, and Top Ten. 
+
+#### (a)
+
+Read in the Ramen data and check it carefully. 
+
+```{r read_csv}
+ramen_df <- read_csv("data/ramen-ratings.csv")
+```
+#### (b)
+
+Rename the first variable to be "review_number", and the last variable to be "top_ten". Additionally, ensure that the Stars column is saved as a numeric variable, and remove any non-numeric entries. 
+
+```{r edits}
+renamed_ramen <- ramen_df %>% 
+  rename(review_number = `Review #`) %>% 
+  rename(top_ten = `Top Ten`)
+#renamed columns
+
+summary(renamed_ramen)
+#checking to see which class each variable is
+
+renamed_ramen$Stars <- as.numeric(renamed_ramen$Stars)
+#made it numeric
+
+renamed_ramen = renamed_ramen[!is.na(renamed_ramen$Stars), ]
+#removed NA values
+```
+
+
+#### (c)
+
+Filtering just for the the 'Nissin' ramen brand, calculate the average rating for each country of this brand. What country has the highest rating of Nissin ramen? What country has the lowest rating? 
+
+```{r filtering}
+
+nissin = renamed_ramen %>% 
+  filter(Brand == "Nissin")
+
+nissin %>% 
+  group_by(Country) %>% 
+  summarize(mean_rating = mean(Stars, na.rm = TRUE))
+
+```
+
+The country with the highest rating of Nissin ramen is **Brazil** with 4.35 stars.
+The country with the lowest rating of Nissin ramen is the **Philippines** with 2 stars.
+
+#### (d)
+
+Create a new variable called "popular" which returns a 1 for entries that have a rating above or equal to 4.5 stars, and 0 for those that don't. 
+
+```{r popular}
+updated_ramen = renamed_ramen %>% 
+  mutate(popular = case_when(Stars >= 4.5 ~ 1,
+                             Stars < 4.5 ~ 0,
+                             TRUE ~ 99))
+```
+
+#### (e)
+
+Calculate the average stars for popular and not popular bowl ramen. Explain why (or why not) your results are meaningful. 
+
+```{r avg_rating}
+updated_ramen %>% 
+  group_by(popular) %>% 
+  summarize(mean_stars = mean(Stars, na.rm = TRUE))
+```
+
+The average stars for popular ramen is **4.86**.
+The average stars for not popular ramen is **3.3**.
+
+Only three values were dropped so these could be seen as meaningful. However, there are also some reasons they may not be: mean is not always the best indicator due to outliers, and there may be some bias in the types of people who provide ratings.
+
+## Question 2 
+
+#### (a)
+
+Read in NYC Airbnb data `AB_NYC_2019.csv`, and select only the: host_name, neighborhood_group, room_type, price, minimum_nights, and number_of_reviews. Note, the neighborhood_group variable refers to borough. 
+
+```{r read_csv}
+airbnb_df <- read_csv("data/AB_NYC_2019.csv")
+#read in
+
+airbnb_select = airbnb_df %>% 
+  select(host_name, neighbourhood_group, room_type, price, minimum_nights, number_of_reviews)
+#select variables
+```
+
+#### (b)
+
+Create a new variable called minimum_price, which combines the minimum nights and price (per night) to give the minimum amount someone could pay to stay at the Airbnb. 
+
+```{r minimum_price}
+updated_airbnb = airbnb_select %>% 
+  mutate(minimum_price = minimum_nights*price)
+```
+
+#### (c)
+
+Calculate the mean and median minimum_price using 'summarize'. From these results, estimate whether you expect the data to be left or right skewed? Confirm your hypothesis by creating a histogram. Note, to improve the visualization of your histogram, consider removing very high prices. 
+
+```{r summarize}
+updated_airbnb %>% 
+  summary(minimum_price)
+```
+
+The mean minimum price is **$1,284.40.**
+The median minimum price is **$300.00**.
+I estimate that the data is right-skewed, as the mean is much larger than the median.
+
+```{r histogram}
+ggplot(data = updated_airbnb) +
+  geom_histogram(aes(x = minimum_price), bins = 70) +  
+  labs(title = "Histogram of Airbnb Data", x = "Minimum Price")
+#ugly graph
+```
+
+```{r updated_histogram}
+
+narrowed_airbnb = subset(updated_airbnb, minimum_price < 1000)
+#removing minimum prices over $1000
+  
+ggplot(data = narrowed_airbnb) +
+  geom_histogram(aes(x = minimum_price), bins = 70) +  
+  labs(title = "Histogram of Airbnb Data", x = "Minimum Price")
+```
+
+**This graph is right-skewed, supporting my hypothesis.**
+
+#### (d)
+
+Are all of the New York City boroughs represented in the data? Prove your conclusion using the summarize function to show the number of observations in each borough.
+
+```{r count}
+updated_airbnb %>% 
+  group_by(neighbourhood_group) %>% 
+  summarise(Count = n())
+```
+
+There are _many_ more listings in the boroughs of Brooklyn and Manhattan compared to those in the Bronx, Queens and Staten Island. Therefore I do not believe all boroughs are well-represented.
+
+#### (e)
+
+Plot a boxplot of price across boroughs, showing only properties less than 1,000 a night. From the graph, which borough appears to have the highest median price? Which seems to have the lowest median price? Confirm this result using summarize and report the median price by borough. 
+
+```{r boxplot}
+cheaper_airbnb = subset(updated_airbnb, price < 1000)
+#showing only peoperties less than $1000/night
+
+ggplot(data = cheaper_airbnb) +
+  geom_boxplot(aes(x = price, y = neighbourhood_group))
+#plot
+
+cheaper_airbnb %>% 
+  group_by(neighbourhood_group) %>% 
+  summarize(median_price = median(price, na.rm = TRUE))
+#confirm median results
+```
+
+**Manhattan** has the highest median price at $149.
+**The Bronx** has the lowest median price at $65.
+Brooklyn's median price is $90.
+Queens and Staten Island both have a median price of $75.
+
+
+#### (f)
+
+What is the most commonly occurring host name? Re-write the code below using pipes and then report the answer in a sentence.
+
+```{r}
+
+arrange(summarise(group_by(nyc_airbnb, host_name), n = n()), -n)
+
+
+
+```
+
+
+## Question 3
+
+#### (a)
+
+You have been given a dataset for a study of a potential depression drug: `STUDYDAT12014.csv`. It includes treatment and placebo status, dose, age, along with HAM-D and HAM-A scores at baseline (`baseline_hamd` and `baseline_hama`) and at the end of the study (`outcome_hamd` and `outcome_hama`). Read in this dataset (`STUDYDAT12014.csv`) and report how many variables and how many observations are in this dataset.
+
+```{r}
+
+
+
+```
+
+#### (b)
+
+The investigators are interested in analyzing subjects who are at least 30 years old but less than 40 years old, so create a dataset which contains only observations from people within this age range. Use this dataset for all subsequent analyses.
+
+```{r}
+
+
+```
+
+#### (c)
+The treatment groups are currently labeled `pbo` and `trx`, but the researchers would like to have them labeled `Placebo` and `Drug 13XA`. Please make these changes to the dataset you created in (b)  
+
+```{r}
+
+```
+
+#### (d)
+
+Create two new variables `hamd_diff` and `hama_diff` that are changes between baseline and outcome measurements for HAM-A and HAM-D. 
+
+```{r}
+
+```
+
+#### (e)
+
+The investigators are interested in assessing whether there is a difference in (1) mean HAM-A changes between treatment groups and (2) mean HAM-D changes between treatment groups. Use t-tests (unequal variance) to test the difference between treatment groups for both of these outcomes. Be sure to report the test statistic, p-value, and degrees of freedom for each test in your write-up. 
+
+```{r}
+
+
+
+```
+
+
+## Question 4
+
+#### (a) 
+
+You have been provided with a dataset from a student-run cafe `cafedata.xls`. This dataset contains data from a cafe, called Executive Express, run by undergraduate business students at a Midwestern public university. It was collected over a ten-week period from January to April 2010.  Use what you have learned to read the data in, prepare it for analysis, and then calculate the necessary summary statistics to fill out the paragraph below, replacing the X's with appropriate results.
+
+```{r}
+
+
+
+```
+
+Students called a day a 'profitable day', when they had at least $160 in sales. There were XXX 'profitable' days and XXX 'unprofitable' days. 
+
+On 'profitable' days, the mean number of wraps sold was XXX with a standard deviation of XXX. On 'unprofitable' days, the mean number of wraps sold was XXX with a standard deviation of XXX. 
+
+On 'profitable days', on average they sold XXX muffins and cookies combined, with a standard deviation of XXX. On 'unprofitable days', on average they sold XXX muffins and cookies combined, with a standard deviation of XXX. 
+
+The mean number of coffees sold on 'profitable' days was XXX with a standard deviation of XXX and the mean number of coffees sold on 'unprofitable' days was XXX with a standard deviation of XXX. 
+
+When comparing profitable to nonprofitable days, there was a significant difference in coffee sold (p-value = XXX, t=XXX, df=XXX), and in wraps sold (p-value = XXX, t=XXX, df=XXX). However, the sales of muffins and cookies did not significantly differ between profitable and nonprofitable days (p-value = XXX, t=XXX, df=XXX), at a level of significance of 5%.
+
+#### (b)
+
+Create a graph that displays the distribution of coffee sales by day. Make sure the graph has the days ordered properly, as we would expect to see them on a calendar. 
+
+```{r}
+
+```
+
